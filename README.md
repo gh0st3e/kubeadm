@@ -4,7 +4,7 @@ CONTAINERD 1.6.16
 
 UBUNTU 22.04
 
-# PRE-INSTALL STEPS: 
+# PRE-INSTALL STEPS: [FOR BOTH NODES]
 
 `printf "\n192.168.15.93 k8s-control\n192.168.15.94 k8s-2\n\n" >> /etc/hosts`
 
@@ -53,7 +53,7 @@ UBUNTU 22.04
 `apt-get install -y apt-transport-https ca-certificates curl`
 
 
-# INSTALL KUBEADM, KUBELET, KUBECTL
+# INSTALL KUBEADM, KUBELET, KUBECTL [FOR BOTH NODES]
 
 You can use this link or continue following next steps [https://v1-28.docs.kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/#installing-kubeadm-kubelet-and-kubectl]
 
@@ -72,7 +72,7 @@ You can use this link or continue following next steps [https://v1-28.docs.kuber
 `sudo apt-mark hold kubelet kubeadm kubectl`
 
 
-# INSTALL CALICO AND INIT NOE
+# INSTALL CALICO AND INIT NOE [FOR HEAD NODE]
 
 You can use this link or continue following next steps [https://v1-28.docs.kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/#installing-kubeadm-kubelet-and-kubectl]
 
@@ -109,4 +109,48 @@ It should return:
 
 ```
 
+### If your node have status Not-Ready look at `TROUBLESHOOTING` section
 
+
+# JOIN WOROKER NODE [FOR WORKER NODE]
+
+Command that you have saved while init head node in previous step
+
+`kubeadm join 192.168.0.4:6443 --token owbfiz.eokqnp6nh3vuliry \
+        --discovery-token-ca-cert-hash sha256:d4c94ba0f1bd354dcdcc03f757250d030bbee19ab5369566dc366bede131b760`
+
+# TROUBLESHOOTING [FOR BOTH NODES]
+
+If nodes can't change their state for `Ready` try to do install cni again
+
+`wget https://github.com/containernetworking/plugins/releases/download/v0.8.2/cni-plugins-linux-amd64-v0.8.2.tgz`
+
+`mkdir cni`
+
+`tar cni-plugins-linux-amd64-v0.8.2.tgz -C cni`
+
+`mkdir -p /opt/cni/bin`
+
+`cp ./cni/* /opt/cni/bin/`
+
+`mkdir -p /etc/cni/net.d/`
+
+`cat >/etc/cni/net.d/bridge.conf <<EOF
+{
+  "cniVersion": "0.3.1",
+  "name": "containerd-net",
+  "type": "bridge",
+  "bridge": "cni0",
+  "isGateway": true,
+  "ipMasq": true,
+  "ipam": {
+    "type": "host-local",
+    "subnet": "10.88.0.0/16",
+    "routes": [
+      { "dst": "0.0.0.0/0" }
+    ]
+  }
+}
+EOF`
+
+# Wait for few minutes, status should be `Ready`
