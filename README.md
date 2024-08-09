@@ -78,10 +78,12 @@ You can use this link or continue following next steps [https://v1-28.docs.kuber
 
 `sudo kubeadm init --pod-network-cidr=192.168.0.0/16`
 
+_____________
 After it you will get join command at the end. Save it. It should return:
 
 `kubeadm join 192.168.0.4:6443 --token owbfiz.eokqnp6nh3vuliry \
         --discovery-token-ca-cert-hash sha256:d4c94ba0f1bd354dcdcc03f757250d030bbee19ab5369566dc366bede131b760`
+_____________
 
 `mkdir -p $HOME/.kube`
 
