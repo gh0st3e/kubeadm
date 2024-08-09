@@ -112,7 +112,7 @@ It should return:
 #### If your node have status Not-Ready look at `TROUBLESHOOTING` section
 
 
-# JOIN WOROKER NODE [FOR WORKER NODE]
+# JOIN WORKER NODE [FOR WORKER NODE]
 
 Command that you have saved while init head node in previous step
 
