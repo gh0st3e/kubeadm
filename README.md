@@ -1,34 +1,10 @@
-# kubeadm
+KUBERNETES 1.28
 
-Step#1
-Install client-tools
-
-1) install golang https://go.dev/doc/install
-
-Step#2
-Prepare kubeadm,kubelete,kubectl 
-Common guide (https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/)
-1) install Docker https://docs.docker.com/engine/install/ubuntu/
-2) Docker postinstall https://docs.docker.com/engine/install/linux-postinstall/ [optional]
-3) install kubelet kubectl kubeadm https://v1-28.docs.kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/#installing-kubeadm-kubelet-and-kubectl
-
-Step#3
-Init Node
-1) init node https://docs.tigera.io/calico/latest/getting-started/kubernetes/quickstart
-  1.1) if cri doesn't work
-     `rm /etc/containerd/config.toml`
-     `systemctl restart containerd`
-     `kubeadm init`
-2)  
-
-
----------------------------------------------------------------------------------------------------
-
-KUBERNETES 1.26
 CONTAINERD 1.6.16
+
 UBUNTU 22.04
 
-### ALL: 
+# PRE-INSTALL STEPS: 
 
 `printf "\n192.168.15.93 k8s-control\n192.168.15.94 k8s-2\n\n" >> /etc/hosts`
 
@@ -62,10 +38,11 @@ UBUNTU 22.04
 
 `tar Cxzvf /opt/cni/bin /tmp/cni-plugins-linux-amd64-v1.2.0.tgz`
 
-
 `mkdir -p /etc/containerd`
 
-`nano /etc/containerd/config.toml`   <<<<<<<<<<< manually edit and change systemdCgroup to true
+`containerd config default | tee /etc/containerd/config.toml`
+
+`nano /etc/containerd/config.toml`   <<<<<<<<<<< manually edit and change `systemdCgroup` to true
 
 `systemctl restart containerd`
 
@@ -76,41 +53,58 @@ UBUNTU 22.04
 `apt-get install -y apt-transport-https ca-certificates curl`
 
 
-`curl -fsSLo /etc/apt/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg`
+# INSTALL KUBEADM, KUBELET, KUBECTL
 
-`echo "deb [signed-by=/etc/apt/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | tee /etc/apt/sources.list.d/kubernetes.list` <<<<< better look in k8s official web site
+You can use this link or continue following next steps [https://v1-28.docs.kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/#installing-kubeadm-kubelet-and-kubectl]
 
+`sudo apt-get update`
 
-`apt-get update`
+`sudo apt-get install -y apt-transport-https ca-certificates curl gpg`
 
-`reboot`
+`curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg`
 
-`apt-get install -y kubelet=1.26.1-00 kubeadm=1.26.1-00 kubectl=1.26.1-00`
+`echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list`
 
-`apt-mark hold kubelet kubeadm kubectl`
+`sudo apt-get update`
 
-# check swap config, ensure swap is 0
-`free -m`
+`sudo apt-get install -y kubelet kubeadm kubectl`
 
-
-### ONLY ON CONTROL NODE .. control plane install:
-`kubeadm init --pod-network-cidr 10.10.0.0/16 --kubernetes-version 1.26.1 --node-name k8s-control`
+`sudo apt-mark hold kubelet kubeadm kubectl`
 
 
-# add Calico 3.25 CNI 
-### https://docs.tigera.io/calico/3.25/getting-started/kubernetes/quickstart
-`kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.25.0/manifests/tigera-operator.yaml`
+# INSTALL CALICO AND INIT NOE
 
-`wget https://raw.githubusercontent.com/projectcalico/calico/v3.25.0/manifests/custom-resources.yaml`
+You can use this link or continue following next steps [https://v1-28.docs.kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/#installing-kubeadm-kubelet-and-kubectl]
 
-`vi custom-resources.yaml` <<<<<< edit the CIDR for pods if its custom
+`sudo kubeadm init --pod-network-cidr=192.168.0.0/16`
 
-`kubectl apply -f custom-resources.yaml`
+After it you will get join command at the end. Save it. It should return:
 
-# get worker node commands to run to join additional nodes into cluster
+`kubeadm join 192.168.0.4:6443 --token owbfiz.eokqnp6nh3vuliry \
+        --discovery-token-ca-cert-hash sha256:d4c94ba0f1bd354dcdcc03f757250d030bbee19ab5369566dc366bede131b760`
 
-`kubeadm token create --print-join-command`
+`mkdir -p $HOME/.kube`
+
+`sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config`
+
+`sudo chown $(id -u):$(id -g) $HOME/.kube/config`
+
+`kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.28.1/manifests/tigera-operator.yaml`
+
+`kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.28.1/manifests/custom-resources.yaml`
+
+`watch kubectl get pods -n calico-system` - Wait until each pod has the `STATUS` of `Running`
+
+`kubectl taint nodes --all node-role.kubernetes.io/control-plane-`
+
+`kubectl get nodes -o wide`
+
+It should return:
+
+```
+  NAME              STATUS   ROLES    AGE   VERSION   INTERNAL-IP   EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION    CONTAINER-RUNTIME
+  <your-hostname>   Ready    master   52m   v1.12.2   10.128.0.28   <none>        Ubuntu 18.04.1 LTS   4.15.0-1023-gcp   docker://18.6.1
+
+```
 
 
-## ONLY ON WORKER nodes
-Run the command from the token create output above
